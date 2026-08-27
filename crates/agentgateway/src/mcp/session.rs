@@ -203,6 +203,7 @@ impl Session {
 				service_name.to_string(),
 				prompt.to_string(),
 			)),
+			method,
 			cel,
 		) {
 			return Err(UpstreamError::Authorization {
@@ -231,6 +232,7 @@ impl Session {
 				service_name.to_string(),
 				uri.to_string(),
 			)),
+			method,
 			cel,
 		) {
 			return Err(UpstreamError::Authorization {
@@ -260,6 +262,7 @@ impl Session {
 				service_name.to_string(),
 				task_id.to_string(),
 			)),
+			method,
 			cel,
 		) {
 			return Err(UpstreamError::Authorization {
@@ -290,7 +293,7 @@ impl Session {
 			.maybe_run_guardrails_call_request(backend, method, params, ctx)
 			.await?;
 		let cel = rbac::CelExecWrapper::new(ctx.as_request().map(|_| ()));
-		if self.relay.policies.validate(&res, &cel) {
+		if self.relay.policies.validate(&res, method, &cel) {
 			Ok(())
 		} else {
 			Err(UpstreamError::Authorization {
