@@ -344,7 +344,7 @@ impl Relay {
 					// rewrite_tool_list_ui_meta only ever invokes this closure when the message it's
 					// rewriting is itself a ListToolsResult, so this check only ever fires for a
 					// tools/list response's embedded UI resource URIs.
-					crate::mcp::guardrails::methods::TOOLS_LIST,
+					&crate::mcp::guardrails::methods::TOOLS_LIST,
 					&cel,
 				)
 			};
@@ -726,7 +726,7 @@ impl Relay {
 									server_name.to_string(),
 									t.name.to_string(),
 								)),
-								crate::mcp::guardrails::methods::TOOLS_LIST,
+								&crate::mcp::guardrails::methods::TOOLS_LIST,
 								cel,
 							)
 						})
@@ -876,7 +876,7 @@ impl Relay {
 									server_name.to_string(),
 									p.name.to_string(),
 								)),
-								crate::mcp::guardrails::methods::PROMPTS_LIST,
+								&crate::mcp::guardrails::methods::PROMPTS_LIST,
 								cel,
 							)
 						})
@@ -918,7 +918,7 @@ impl Relay {
 										server_name.to_string(),
 										r.uri.to_string(),
 									)),
-									crate::mcp::guardrails::methods::RESOURCES_LIST,
+									&crate::mcp::guardrails::methods::RESOURCES_LIST,
 									cel,
 								)
 							})
@@ -965,7 +965,7 @@ impl Relay {
 										server_name.to_string(),
 										rt.uri_template.to_string(),
 									)),
-									crate::mcp::guardrails::methods::RESOURCES_TEMPLATES_LIST,
+									&crate::mcp::guardrails::methods::RESOURCES_TEMPLATES_LIST,
 									cel,
 								)
 							})

@@ -8,6 +8,7 @@ use ::http::StatusCode;
 use ::http::header::CONTENT_TYPE;
 use ::http::request::Parts;
 use agent_core::prelude::AssertSize;
+use agent_core::strng::Strng;
 use agent_core::version::BuildInfo;
 use anyhow::anyhow;
 use futures_util::StreamExt;
@@ -184,7 +185,7 @@ impl Session {
 	async fn authorize_prompt_request<'a, 'b: 'a>(
 		&'a self,
 		name: &'b str,
-		method: &str,
+		method: &Strng,
 		span: &mut SpanWriteOnDrop,
 		log: &AsyncLog<mcp::MCPInfo>,
 		cel: &rbac::CelExecWrapper,
@@ -218,7 +219,7 @@ impl Session {
 		&self,
 		service_name: &str,
 		uri: &str,
-		method: &str,
+		method: &Strng,
 		span: &mut SpanWriteOnDrop,
 		log: &AsyncLog<mcp::MCPInfo>,
 		cel: &rbac::CelExecWrapper,
@@ -248,7 +249,7 @@ impl Session {
 		&self,
 		service_name: &str,
 		task_id: &str,
-		method: &str,
+		method: &Strng,
 		span: &mut SpanWriteOnDrop,
 		log: &AsyncLog<mcp::MCPInfo>,
 		cel: &rbac::CelExecWrapper,
@@ -277,7 +278,7 @@ impl Session {
 	async fn authorize_with_ctx<P>(
 		&self,
 		backend: &str,
-		method: &str,
+		method: &Strng,
 		params: &mut P,
 		ctx: &mut IncomingRequestContext,
 		res: rbac::ResourceType,
@@ -418,7 +419,7 @@ impl Session {
 		mut init_request: InitializeRequest,
 		service_name: &str,
 	) -> Result<Response, UpstreamError> {
-		let method = init_request.method.as_str().to_string();
+		let method: Strng = init_request.method.as_str().into();
 		let ctx = IncomingRequestContext::new(&parts);
 		let (_, log, _) = mcp::handler::setup_request_log(parts, &method);
 		let session_id = (!self.synthetic).then(|| self.id.to_string());
@@ -448,7 +449,7 @@ impl Session {
 			method: Default::default(),
 			extensions: Default::default(),
 		};
-		let method = initialized.method.as_str().to_string();
+		let method: Strng = initialized.method.as_str().into();
 		let ctx = IncomingRequestContext::new(&parts);
 		let (_, log, _) = mcp::handler::setup_request_log(parts, &method);
 		let session_id = (!self.synthetic).then(|| self.id.to_string());
@@ -477,7 +478,7 @@ impl Session {
 		// It's very common to not have any notifications, though.
 		match message {
 			ClientJsonRpcMessage::Request(mut r) => {
-				let method = r.request.method().to_string();
+				let method: Strng = r.request.method().into();
 				let mut ctx = IncomingRequestContext::new(&parts);
 				let (mut span, log, cel) = mcp::handler::setup_request_log(parts, &method);
 				let session_id = (!self.synthetic).then(|| self.id.to_string());
@@ -593,7 +594,7 @@ impl Session {
 						ctr.params.name = tn.into();
 						Box::pin(self.authorize_with_ctx(
 							&service_name,
-							mcp::guardrails::methods::TOOLS_CALL,
+							&mcp::guardrails::methods::TOOLS_CALL,
 							&mut ctr.params,
 							&mut ctx,
 							rbac::ResourceType::Tool(rbac::ResourceId::new(
@@ -626,7 +627,7 @@ impl Session {
 						gpr.params.name = prompt.to_string();
 						Box::pin(self.authorize_with_ctx(
 							&service_name,
-							mcp::guardrails::methods::PROMPTS_GET,
+							&mcp::guardrails::methods::PROMPTS_GET,
 							&mut gpr.params,
 							&mut ctx,
 							rbac::ResourceType::Prompt(rbac::ResourceId::new(
@@ -649,7 +650,7 @@ impl Session {
 						rrr.params.uri = original_uri.clone();
 						Box::pin(self.authorize_with_ctx(
 							service_name,
-							mcp::guardrails::methods::RESOURCES_READ,
+							&mcp::guardrails::methods::RESOURCES_READ,
 							&mut rrr.params,
 							&mut ctx,
 							rbac::ResourceType::Resource(rbac::ResourceId::new(
@@ -767,9 +768,9 @@ impl Session {
 							cr.params.r#ref = Reference::for_resource(original_uri);
 							Box::pin(self.relay.send_single(r, ctx, service_name, None)).await
 						},
-						_ => Err(UpstreamError::InvalidMethod(method)),
+						_ => Err(UpstreamError::InvalidMethod(method.to_string())),
 					},
-					_ => Err(UpstreamError::InvalidMethod(method)),
+					_ => Err(UpstreamError::InvalidMethod(method.to_string())),
 				}
 			},
 			ClientJsonRpcMessage::Notification(r) => {
@@ -785,7 +786,7 @@ impl Session {
 				let (_span, log, _cel) = mcp::handler::setup_request_log(parts, method);
 				let session_id = (!self.synthetic).then(|| self.id.to_string());
 				log.non_atomic_mutate(|l| {
-					l.method_name = Some(method.to_string());
+					l.method_name = Some(method.into());
 					l.session_id = session_id;
 				});
 				// TODO: the notification needs to be fanned out in some cases and sent to a single one in others
