@@ -916,7 +916,7 @@ fn credential(name: &'static str, value: &str, prefix: Option<&str>) -> BackendA
 			name: ::http::HeaderName::from_static(name),
 			prefix: prefix.map(Into::into),
 		},
-		key: SecretString::new(value.to_string().into()).into(),
+		source: BackendAuthCredentialSource::Key(SecretString::new(value.to_string().into()).into()),
 	}
 }
 
@@ -1017,7 +1017,7 @@ async fn test_backend_auth_credential_query_parameter() {
 
 	let credentials = vec![BackendAuthCredential {
 		location: AuthorizationLocation::QueryParameter { name: "key".into() },
-		key: SecretString::new("my-secret-key".into()).into(),
+		source: BackendAuthCredentialSource::Key(SecretString::new("my-secret-key".into()).into()),
 	}];
 
 	let auth = BackendAuth {
@@ -1031,6 +1031,60 @@ async fn test_backend_auth_credential_query_parameter() {
 	assert_eq!(
 		req.uri().to_string(),
 		"http://example.com/search?keep=yes&key=my-secret-key"
+	);
+}
+
+#[tokio::test]
+async fn test_backend_auth_gcp_credential_failure_rejects_request() {
+	let mut req = crate::http::Request::new(crate::http::Body::empty());
+	req.headers_mut().insert(
+		::http::header::AUTHORIZATION,
+		::http::HeaderValue::from_static("Bearer caller-token"),
+	);
+	let t = setup_proxy_test("{}").expect("setup proxy inputs");
+	let backend_info = BackendInfo {
+		call_target: Target::Address("0.0.0.0:80".parse().unwrap()),
+		target: BackendTarget::Backend {
+			name: Default::default(),
+			namespace: Default::default(),
+			section: None,
+			kind: None,
+		},
+		inputs: t.inputs(),
+	};
+	let auth = BackendAuth {
+		kind: None,
+		credentials: vec![BackendAuthCredential {
+			location: AuthorizationLocation::Header {
+				name: ::http::header::PROXY_AUTHORIZATION,
+				prefix: Some("Bearer ".into()),
+			},
+			source: BackendAuthCredentialSource::Gcp(GcpAuth::IdToken {
+				r#type: gcp::IdToken,
+				audience: Some("iap-client-id".to_string()),
+				credential: Some(gcp::GcpCredential::new_invalid(
+					"invalid credential".to_string(),
+				)),
+			}),
+		}],
+	};
+
+	let err = apply_backend_auth(&backend_info, &auth, &mut req)
+		.await
+		.expect_err("a failed gcp credential must reject the request");
+	assert!(matches!(
+		err,
+		ProxyError::BackendAuthenticationFailed(BackendAuthError::Local(_))
+	));
+	assert!(
+		req
+			.headers()
+			.get(::http::header::PROXY_AUTHORIZATION)
+			.is_none()
+	);
+	assert_eq!(
+		req.headers().get(::http::header::AUTHORIZATION).unwrap(),
+		"Bearer caller-token"
 	);
 }
 

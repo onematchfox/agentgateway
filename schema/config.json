@@ -4764,7 +4764,7 @@
           "$ref": "#/$defs/AuthorizationLocation"
         },
         "key": {
-          "description": "Credential value. Exactly one of `key` or `expression` must be set.",
+          "description": "Credential value. Exactly one of `key`, `expression`, or `gcp` must be set.",
           "anyOf": [
             {
               "$ref": "#/$defs/FileOrInline"
@@ -4779,6 +4779,18 @@
           "anyOf": [
             {
               "$ref": "#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "gcp": {
+          "description": "Mint a GCP token.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GcpAuth"
             },
             {
               "type": "null"
